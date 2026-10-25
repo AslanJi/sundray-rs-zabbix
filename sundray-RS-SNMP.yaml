@@ -1,0 +1,331 @@
+zabbix_export:
+  version: '8.0'
+  template_groups:
+    - uuid: 36bff6c29af64692839d077febfc7079
+      name: 'Templates/Network devices'
+  templates:
+    - uuid: 7c9e2f4a1b8d4e6f9a3c5d7e2b4f6a8c
+      template: 'Sundray RS Switch by SNMP'
+      name: 'Sundray RS Switch by SNMP'
+      description: |
+        Template D-Sundray RS Switch
+        信锐-安视交换机系列
+      vendor:
+        name: jiyao
+        version: '7.0-2'
+      groups:
+        - name: 'Templates/Network devices'
+      items:
+        - uuid: e870c8208c15448ab1611ab56a599ee8
+          name: 'Network interfaces walk (ifDescr)'
+          type: SNMP_AGENT
+          snmp_oid: 'walk[1.3.6.1.2.1.2.2.1.2,1.3.6.1.2.1.2.2.1.3,1.3.6.1.2.1.2.2.1.5,1.3.6.1.2.1.2.2.1.8,1.3.6.1.2.1.2.2.1.9,1.3.6.1.2.1.2.2.1.10,1.3.6.1.2.1.2.2.1.13,1.3.6.1.2.1.2.2.1.14,1.3.6.1.2.1.2.2.1.16,1.3.6.1.2.1.2.2.1.19,1.3.6.1.2.1.2.2.1.20]'
+          key: net.if.walk
+          delay: 2m
+          value_type: TEXT
+          description: '主监控项，ifDescr表，状态，接收与发送流量等'         
+          
+        - uuid: ad5673e743db44649661d38ffab47179
+          name: 'System description'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.1.0
+          key: 'system.descr[sysDescr.0]'
+          delay: 1d
+          value_type: CHAR
+          description: 设备描述
+        - uuid: 3b1269c1684a4c848917f4354ea9a484
+          name: 'Switch Name'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.45577.5.7.4.0'
+          key: 'sundray.switch.name'
+          delay: 1d
+          value_type: TEXT
+          description: 交换机名称
+          preprocessing:
+          - type: JAVASCRIPT
+            parameters:
+              - |
+                var hex = value.replace(/^Hex-STRING:\s*/i, '').replace(/\s+/g, '');
+                var result = '';
+                for (var i = 0; i < hex.length; i += 2) {
+                    result += '%' + hex.substr(i, 2);
+                }
+                try {
+                    return decodeURIComponent(result);
+                } catch (e) {
+                    return value;
+                }
+        - uuid: 63aa4c3dc96c4113a712c9927795666f
+          name: 'CPU使用率'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.2.1.25.3.3.1.2.196608'
+          key: 'system.cpu.util'
+          value_type: UNSIGNED
+          units: '%'
+          delay: 2m
+          history: 7d
+          trends: 30d
+          description: 'CPU 使用率百分比。'
+        - uuid: d24570b7c9444472821a1b58b5c8cace
+          name: 'Device serial number'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.45577.5.7.6.0'
+          key: 'sundray.serial.number'
+          delay: 1d
+          value_type: CHAR
+          description: '设备序列号'
+        - uuid: 27e9e904f18b4790aed1c9c3339e4d0c
+          name: 'Hardware model'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.45577.5.7.8.0'
+          key: 'sundray.hardware.model'
+          delay: 1d
+          value_type: CHAR
+          description: '设备硬件型号'
+        - uuid: 47f35338d9f2437d826aefb24dd70f0e
+          name: 'Uptime (network)'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.3.0
+          key: 'system.net.uptime[sysUpTime.0]'
+          delay: 2m
+          value_type: FLOAT
+          units: uptime
+          description: 设备管理部分重新初始化的时间
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+      discovery_rules:
+        - uuid: 3e8ccc3229144737bad3b1731218fd13
+          name: 'Network interfaces'
+          type: DEPENDENT
+          key: net.if.discovery
+          description: 发现所有网络接口
+          item_prototypes:
+            - uuid: 616d574626534c66802e31819c933e05
+              name: 'Interface {#IFDESCR}: Inbound discarded'
+              type: DEPENDENT
+              key: 'net.if.in.discards[ifInDiscards.{#SNMPINDEX}]'
+              description: 接收丢包个数
+              preprocessing:
+                - type: SNMP_WALK_VALUE
+                  parameters:
+                    - '1.3.6.1.2.1.2.2.1.13.{#SNMPINDEX}'
+                    - '0'
+                - type: CHANGE_PER_SECOND
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 2m
+              master_item:
+                key: net.if.walk
+              tags:
+                - tag: component
+                  value: network
+            - uuid: c061a90edeb141719ce4f703c3b1783d
+              name: 'Interface {#IFDESCR}: Inbound packets with errors'
+              type: DEPENDENT
+              key: 'net.if.in.errors[ifInErrors.{#SNMPINDEX}]'
+              description: '接口 {#IFDESCR} 接收错误包超过阈值。'
+              preprocessing:
+                - type: SNMP_WALK_VALUE
+                  parameters:
+                    - '1.3.6.1.2.1.2.2.1.14.{#SNMPINDEX}'
+                    - '0'
+                - type: CHANGE_PER_SECOND
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 2m
+              master_item:
+                key: net.if.walk
+              tags:
+                - tag: component
+                  value: network
+              trigger_prototypes:
+                - uuid: f257afb53d3a44e4a5fbda865415c752
+                  expression: 'min(/Sundray RS Switch by SNMP/net.if.in.errors[ifInErrors.{#SNMPINDEX}],2m) > {$IF.ERRORS.WARN}'
+                  name: 'Interface {#IFDESCR}: High inbound errors'
+                  priority: WARNING
+                  description: '接口 {#IFDESCR} 接收错误包超过阈值'
+            - uuid: 60471be898be4018ac7b8c5d50188220
+              name: 'Interface {#IFDESCR}: Bits received'
+              type: DEPENDENT
+              key: 'net.if.in[ifInOctets.{#SNMPINDEX}]'
+              units: bps
+              description: |
+                接口接收的字节数
+                The total number of octets received on the interface,including framing characters. Discontinuities in the value of this counter can occur at re-initialization of the management system, and another times as indicated by the value of ifCounterDiscontinuityTime.
+              preprocessing:
+                - type: SNMP_WALK_VALUE
+                  parameters:
+                    - '1.3.6.1.2.1.2.2.1.10.{#SNMPINDEX}'
+                    - '0'
+                - type: CHANGE_PER_SECOND
+                - type: MULTIPLIER
+                  parameters:
+                    - '8'
+              master_item:
+                key: net.if.walk
+              tags:
+                - tag: component
+                  value: network
+            - uuid: 50a969c4bacf4926b9cca1d37692aa64
+              name: 'Interface {#IFDESCR}: Last change'
+              type: DEPENDENT
+              key: 'net.if.lastchange[ifLastChange.{#SNMPINDEX}]'
+              units: uptime
+              description: '接口状态最后变更时间'
+              preprocessing:
+                - type: SNMP_WALK_VALUE
+                  parameters:
+                    - '1.3.6.1.2.1.2.2.1.9.{#SNMPINDEX}'
+                    - '0'
+                - type: MULTIPLIER
+                  parameters:
+                    - '0.01'
+              master_item:
+                key: net.if.walk
+            - uuid: fc03b893df024f1e89753077bbf51727
+              name: 'Interface {#IFDESCR}: Outbound discards'
+              type: DEPENDENT
+              key: 'net.if.out.discards[ifOutDiscards.{#SNMPINDEX}]'
+              description: '发送丢包个数'
+              preprocessing:
+                - type: SNMP_WALK_VALUE
+                  parameters:
+                    - '1.3.6.1.2.1.2.2.1.19.{#SNMPINDEX}'
+                    - '0'
+                - type: CHANGE_PER_SECOND
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 2m
+              master_item:
+                key: net.if.walk
+              tags:
+                - tag: component
+                  value: network
+            - uuid: bc5b281310d448cd8b84e7f015d0d2ea
+              name: 'Interface {#IFDESCR}: Outbound packets with errors'
+              type: DEPENDENT
+              key: 'net.if.out.errors[ifOutErrors.{#SNMPINDEX}]'
+              description: '发送错误报文个数'
+              preprocessing:
+                - type: SNMP_WALK_VALUE
+                  parameters:
+                    - '1.3.6.1.2.1.2.2.1.20.{#SNMPINDEX}'
+                    - '0'
+                - type: CHANGE_PER_SECOND
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 2m
+              master_item:
+                key: net.if.walk
+              trigger_prototypes:
+                - uuid: 586cef7c8b18498c972d91bfd44d9f50
+                  expression: 'min(/Sundray RS Switch by SNMP/net.if.out.errors[ifOutErrors.{#SNMPINDEX}],2m) > {$IF.ERRORS.WARN}'
+                  name: 'Interface {#IFDESCR}: High outbound errors'
+                  priority: WARNING
+                  description: '接口 {#IFDESCR} 发送错误包超过阈值'
+            - uuid: 7bda0a21e6d64072ad20f659823fff69
+              name: 'Interface {#IFDESCR}: Bits sent'
+              type: DEPENDENT
+              key: 'net.if.out[ifOutOctets.{#SNMPINDEX}]'
+              units: bps
+              description: '接口发送的字节数'
+              preprocessing:
+                - type: SNMP_WALK_VALUE
+                  parameters:
+                    - '1.3.6.1.2.1.2.2.1.16.{#SNMPINDEX}'
+                    - '0'
+                - type: CHANGE_PER_SECOND
+                - type: MULTIPLIER
+                  parameters:
+                    - '8'
+              master_item:
+                key: net.if.walk
+              tags:
+                - tag: component
+                  value: network
+            - uuid: 3066c242e7f24247a7f6e4de5f0c6d8f
+              name: 'Interface {#IFDESCR}: Speed'
+              type: DEPENDENT
+              key: 'net.if.speed[ifSpeed.{#SNMPINDEX}]'
+              trends: '0'
+              units: bps
+              description: '接口当前带宽'
+              preprocessing:
+                - type: SNMP_WALK_VALUE
+                  parameters:
+                    - '1.3.6.1.2.1.2.2.1.5.{#SNMPINDEX}'
+                    - '0'
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 2m
+              master_item:
+                key: net.if.walk
+              tags:
+                - tag: component
+                  value: network
+            - uuid: 5320934181ae481ab66572b6d315940d
+              name: 'Interface {#IFDESCR}: Operational status'
+              type: DEPENDENT
+              key: 'net.if.status[ifOperStatus.{#SNMPINDEX}]'
+              trends: '0'
+              description: '接口操作状态 (1=up, 2=down)'
+              valuemap:
+                name: 'IF-MIB::ifOperStatus'
+              preprocessing:
+                - type: SNMP_WALK_VALUE
+                  parameters:
+                    - '1.3.6.1.2.1.2.2.1.8.{#SNMPINDEX}'
+                    - '0'
+              master_item:
+                key: net.if.walk
+              tags:
+                - tag: component
+                  value: network
+              trigger_prototypes:
+                - uuid: 62976f6145d2462e9a598fdace6d85a3
+                  name: 'Interface {#IFDESCR}: Link down'
+                  expression: 'change(/Sundray RS Switch by SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])=1 and last(/Sundray RS Switch by SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])=2'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/Sundray RS Switch by SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])=1'
+                  priority: WARNING
+                  description: '接口 {#IFDESCR} 物理链路断开'
+          master_item:
+            key: net.if.walk
+          preprocessing:
+            - type: SNMP_WALK_TO_JSON
+              parameters:
+                - '{#IFDESCR}'
+                - 1.3.6.1.2.1.2.2.1.2
+                - '0'
+                - '{#IFOPERSTATUS}'
+                - 1.3.6.1.2.1.2.2.1.8
+                - '0'
+                - '{#IFTYPE}'
+                - 1.3.6.1.2.1.2.2.1.3
+                - '0'
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1h
+      valuemaps:
+        - uuid: 12684933c4ea4ba59974761887a35ee1
+          name: 'IF-MIB::ifOperStatus'
+          mappings:
+            - value: '1'
+              newvalue: up
+            - value: '2'
+              newvalue: down
+            - value: '3'
+              newvalue: testing
+            - value: '4'
+              newvalue: unknown
+            - value: '5'
+              newvalue: dormant
+            - value: '6'
+              newvalue: notPresent
+            - value: '7'
+              newvalue: lowerLayerDown
+      macros:
+        - macro: '{$IF.ERRORS.WARN}'
+          value: '5'
