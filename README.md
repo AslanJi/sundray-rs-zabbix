@@ -1,12 +1,12 @@
-# Sundray AS-Series Zabbix Template
+# Sundray RS-Series Zabbix Template
 
-Zabbix template for Sundray (信锐) AS-series access switches, based on SNMP.
-Provides monitoring of interface status/traffic, CPU, memory, uptime, and device health.
+Zabbix template for Sundray (信锐) RS-series access switches, based on SNMP.
+Provides monitoring of interface status/traffic, CPU, uptime, and device health.
 
 ## 项目简介
 
-本项目为信锐安视（AS）系列交换机提供 Zabbix 监控模板，基于 SNMP 协议采集
-端口状态与流量、CPU、运行时长及设备健康状态等指标。
+本项目为信锐安视系列交换机提供 Zabbix 监控模板，基于 SNMP 协议采集
+端口状态与流量、CPU、运行时长及设备健康状态等指标。本模板支持安视系列包括RS6300,RS5300,RS3300,RS3320等系列产品。
 
 ## Features / 功能
 
@@ -16,7 +16,7 @@ Provides monitoring of interface status/traffic, CPU, memory, uptime, and device
 
 ## Requirements / 环境要求
 
-- Zabbix 8.0+ (tested) / 已在 Zabbix 6.0+ 测试
+- Zabbix 8.0+ (tested) / 已在 Zabbix 8.0+ 测试
 - SNMP v2c enabled on switches / 交换机需开启 SNMP v2c
 
 ## Usage / 使用方法
